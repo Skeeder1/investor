@@ -1,0 +1,29 @@
+# ── Secrets ───────────────────────────────────────────────
+.env
+
+# ── Python ────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+
+# ── Input images (données personnelles) ───────────────────
+input/
+
+# ── Output : garder le CSV, ignorer le reste ───────────────
+output/*
+!output/transactions.csv
+
+# ── IDE / OS ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Serena (agent local) ──────────────────────────────────
+.serena/
