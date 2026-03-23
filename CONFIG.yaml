@@ -1,0 +1,22 @@
+﻿app:
+  mode: extract
+  test: true
+
+paths:
+  input_dir: input
+  output_csv: output/transactions.csv
+  quarantine_dir: output/quarantine
+
+llm:
+  model: qwen/qwen3.5-flash-02-23
+  max_tokens_vision: 1000
+  max_tokens_text: 200
+  temperature: 0.0
+
+google_sheets:
+  sync_enabled: true
+  sync_mode: send
+  sync_limit: null
+  spreadsheet_id: 1edxyVxRjEtYAWVETnV7398yXxCOCs9pyuhJhcuaU3xU
+  sheet_name: "⚪ CTO"
+  service_account_path: ~/.config/clef_google/service-account.json

@@ -1,28 +1,37 @@
-# Trade Republic Screenshot → CSV Extractor
+# Trade Republic Screenshot -> CSV Extractor
 
-Extrait automatiquement les données de transactions depuis des captures d'écran Trade Republic en utilisant un modèle de vision (LLM) via l'API OpenRouter.
+Extrait automatiquement les donnees de transactions depuis des captures d'ecran Trade Republic avec un modele de vision (OpenRouter), ecrit un CSV dedupplique, puis peut synchroniser le resultat vers Google Sheets.
 
 ## Structure du projet
 
 ```text
-├── main.py                  # Point d'entrée CLI
-├── requirements.txt         # Dépendances Python
-├── .env                     # Clé API (non versionné)
+├── main.py                  # CLI a sous-commandes: all / extract / sync
+├── requirements.txt         # Dependances Python
+├── CONFIG.yaml              # Configuration non sensible
+├── .env                     # Secrets (non versionne)
 ├── prompts/
-│   └── extraction.md        # Prompt d'extraction (modifiable)
+│   └── extraction.md        # Prompt d'extraction
 ├── src/
 │   ├── __init__.py
-│   ├── models.py            # Dataclass Transaction
-│   ├── image.py             # Encodage base64 des images
-│   ├── llm.py               # Appel OpenRouter API
-│   ├── validation.py        # Validation des données extraites
-│   ├── assets.py            # Normalisation des noms d'actifs
-│   ├── csv_writer.py        # Déduplication & écriture CSV
-│   └── processor.py         # Orchestrateur principal
-├── tools/
-│   └── sync_sheets.py       # Sync CSV → Google Sheets
-├── input/                   # Screenshots à traiter
-└── output/                  # CSV généré
+│   ├── config.py            # Chargement config (CLI > YAML > env > defaults)
+│   ├── display.py           # Helpers d'affichage console
+│   ├── app/
+│   │   ├── extract.py       # Orchestration extraction
+│   │   ├── normalize.py     # Orchestration normalisation nom d'actif
+│   │   └── sync.py          # Orchestration sync Google Sheets
+│   ├── domain/
+│   │   ├── models.py        # Dataclass Transaction
+│   │   ├── datetime_utils.py
+│   │   ├── validation.py
+│   │   ├── dedup.py
+│   │   └── asset_rules.py
+│   └── infra/
+│       ├── llm_client.py
+│       ├── image_encoder.py
+│       ├── csv_store.py
+│       └── sheets_client.py
+├── input/                   # Screenshots a traiter
+└── output/                  # CSV genere
 ```
 
 ## Installation
@@ -35,40 +44,84 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Créer un fichier `.env` à la racine :
+La configuration non sensible est dans CONFIG.yaml:
+
+```yaml
+app:
+  mode: all
+  delay: 1.0
+  test: false
+
+paths:
+  input_dir: input
+  output_csv: output/transactions.csv
+  quarantine_dir: output/quarantine
+
+llm:
+  model: qwen/qwen3.5-flash-02-23
+  max_tokens_vision: 1000
+  max_tokens_text: 200
+  temperature: 0.0
+
+google_sheets:
+  sync_enabled: true
+  sync_mode: send
+  sync_limit:
+  spreadsheet_id: "1edxyVxRjEtYAWVETnV7398yXxCOCs9pyuhJhcuaU3xU"
+  sheet_name: "⚪ CTO"
+  service_account_path: "~/.config/clef_google/service-account.json"
+```
+
+Le secret OPENROUTER_API_KEY doit rester dans l'environnement (ou .env):
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
+Priorite de resolution: CLI > CONFIG.yaml > env > defaults.
+
 ## Utilisation
 
+### Workflow complet
+
 ```bash
-python main.py ./input/
-python main.py ./input/ -o output/transactions.csv --delay 1.5
-python main.py --test --sync-mode dry-run
+python main.py
+python main.py all
+python main.py all ./input --delay 1.5 --sync-mode dry-run
 ```
 
-Par défaut, `main.py` exécute le workflow complet:
+### Extraction uniquement
 
-1. extraction des images restantes → CSV
-2. synchronisation Google Sheets automatique en mode `send`
+```bash
+python main.py extract
+python main.py extract ./input --test
+python main.py extract -o output/transactions.csv --delay 1.2
+```
 
-### Options
+### Synchronisation uniquement
 
-- `input_dir`: dossier contenant les screenshots (défaut: `input`)
-- `-o, --output`: fichier CSV de sortie (défaut: `output/transactions.csv`)
-- `--delay`: délai entre appels API en secondes (défaut: `1.0`)
-- `--test`: limite à 1 seul appel LLM (défaut: désactivé)
-- `--sync / --no-sync`: active/désactive la sync Sheets après extraction (défaut: `--sync`)
-- `--sync-mode`: mode sync (`send`, `dry-run`, `confirm`) (défaut: `send`)
-- `--sync-limit`: limite le nombre de lignes envoyées au sheet
+```bash
+python main.py sync --mode dry-run
+python main.py sync --mode confirm --sync-limit 20
+python main.py sync --mode send
+```
 
-## Fonctionnalités
+Compatibilite conservee: lancer sans sous-commande reste equivalent a all.
 
-- **Extraction par vision AI** : Qwen3.5-Flash via OpenRouter
-- **Déduplication** : évite les doublons (date + heure + actif + montant)
-- **Skip des images déjà traitées** : basé sur `source_file` dans le CSV
-- **CSV Excel-compatible** : séparateur `;`, encodage UTF-8 BOM
-- **Sync Google Sheets intégrée au main** : enchaînement automatique après extraction
-- **Prompt modifiable** : éditer `prompts/extraction.md` sans toucher au code
+### Options principales
+
+- all: input_dir, -o/--output, --delay, --test, --sync/--no-sync, --sync-mode, --sync-limit
+- extract: input_dir, -o/--output, --delay, --test
+- sync: -o/--output, --mode (send|dry-run|confirm), --sync-limit
+
+## Fonctionnalites
+
+- Extraction par vision AI via OpenRouter
+- Validation metier + tolerance de coherence numerique
+- Deduplication des transactions (date + heure + actif + montant)
+- Skip des images deja traitees via source_file dans le CSV
+- CSV Excel-compatible: separateur ; et encodage UTF-8 BOM
+- Sync Google Sheets avec insertion chronologique
+- Contrat de date canonique: YYYY-MM-DD dans le CSV
+- Failed en quarantine: les captures failed sont deplacees vers output/quarantine
+- Prompt modifiable dans prompts/extraction.md

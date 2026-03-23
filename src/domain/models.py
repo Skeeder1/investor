@@ -7,7 +7,7 @@ class Transaction:
     time: str              # HH:MM
     asset_name: str        # Ex: "Core S&P 500 USD (Acc)"
     asset_price: float     # Prix unitaire de l'actif
-    units: float           # Nombre d'unités
+    units: float           # Nombre d'unites
     fees: float            # Frais (0.0 si "Free")
     total: float           # Montant total
     type: str              # "buy", "sell" ou "pea"

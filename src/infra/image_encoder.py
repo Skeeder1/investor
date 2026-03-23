@@ -1,6 +1,8 @@
 import base64
 from pathlib import Path
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".heic"}
+
 
 def encode_image(image_path: str) -> tuple[str, str]:
     """Encode image to base64 and detect MIME type."""

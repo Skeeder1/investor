@@ -1,25 +1,23 @@
 import json
 
+from ..infra.llm_client import call_text
+
 
 def normalize_asset_name(
     candidate: str,
     known_assets: set[str],
     api_key: str,
+    model: str = "qwen/qwen3.5-flash-02-23",
 ) -> tuple[str, bool]:
     """Match candidate against known assets, using LLM for fuzzy matching.
 
     Returns (final_name, was_corrected).
     """
-    # Exact match → no LLM call needed
     if candidate in known_assets:
         return candidate, False
 
-    # No known assets yet → first asset, just register it
     if not known_assets:
         return candidate, False
-
-    # Fuzzy match via LLM
-    from .llm import call_openrouter_text
 
     prompt = (
         "You are an asset name matcher. Given a candidate name and a list of known names, "
@@ -32,7 +30,7 @@ def normalize_asset_name(
         "No explanation, no quotes, just the name or NEW."
     )
 
-    result = call_openrouter_text(prompt, api_key).strip().strip('"')
+    result = call_text(prompt, api_key, model).strip().strip('"')
 
     if result == "NEW" or result not in known_assets:
         return candidate, False

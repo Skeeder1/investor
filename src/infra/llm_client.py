@@ -4,9 +4,8 @@ import urllib.request
 from pathlib import Path
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL = "qwen/qwen3.5-flash-02-23"
 
-_PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+_PROMPT_DIR = Path(__file__).resolve().parent.parent.parent / "prompts"
 
 
 def load_prompt(name: str = "extraction") -> str:
@@ -15,20 +14,31 @@ def load_prompt(name: str = "extraction") -> str:
     return path.read_text(encoding="utf-8")
 
 
-def call_openrouter(image_b64: str, mime_type: str, api_key: str) -> dict:
+def _clean_json_markdown(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1]
+    if cleaned.endswith("```"):
+        cleaned = cleaned.rsplit("```", 1)[0]
+    return cleaned.strip()
+
+
+def call_vision(image_b64: str, mime_type: str, api_key: str, model: str) -> dict:
     """Call OpenRouter Vision API (OpenAI-compatible)."""
     prompt = load_prompt("extraction")
     data_url = f"data:{mime_type};base64,{image_b64}"
 
     payload = {
-        "model": OPENROUTER_MODEL,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": data_url}},
-            ]
-        }],
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
         "temperature": 0.0,
         "max_tokens": 1000,
     }
@@ -48,21 +58,13 @@ def call_openrouter(image_b64: str, mime_type: str, api_key: str) -> dict:
         result = json.loads(resp.read().decode("utf-8"))
 
     text = result["choices"][0]["message"]["content"]
-    # Clean markdown fences if present
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-    if text.endswith("```"):
-        text = text.rsplit("```", 1)[0]
-    text = text.strip()
-
-    return json.loads(text)
+    return json.loads(_clean_json_markdown(text))
 
 
-def call_openrouter_text(prompt: str, api_key: str) -> str:
+def call_text(prompt: str, api_key: str, model: str) -> str:
     """Call OpenRouter text API (no image). Returns raw text response."""
     payload = {
-        "model": OPENROUTER_MODEL,
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "max_tokens": 200,

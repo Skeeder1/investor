@@ -1,5 +1,6 @@
 from typing import Optional
 
+from .datetime_utils import normalize_date_iso, normalize_time_hhmm
 from .models import Transaction
 
 
@@ -31,13 +32,13 @@ def validate_transaction(data: dict, filename: str) -> tuple[Optional[Transactio
     except (ValueError, TypeError) as e:
         return None, [f"ERROR {filename}: invalid numeric value - {e}"]
 
-    # Cross-check: buy → units×price + fees ≈ total / sell → units×price - fees ≈ total
+    # Cross-check: buy -> units*price + fees ~= total / sell -> units*price - fees ~= total
     # PEA transactions n'ont pas de ligne Transaction (units/price = 0)
     expected = units * price + fees if tx_type == "buy" else units * price - fees
     if tx_type != "pea" and total > 0 and abs(expected - total) / total > 0.05:
         warnings.append(
             f"WARN {filename}: math check failed - "
-            f"{units} × {price} {'+ ' if tx_type == 'buy' else '- '}{fees} = {expected:.2f} ≠ {total:.2f}"
+            f"{units} x {price} {'+ ' if tx_type == 'buy' else '- '}{fees} = {expected:.2f} != {total:.2f}"
         )
 
     # Confidence check
@@ -48,9 +49,21 @@ def validate_transaction(data: dict, filename: str) -> tuple[Optional[Transactio
     if data.get("notes"):
         warnings.append(f"NOTE {filename}: {data['notes']}")
 
+    raw_date = data.get("date", "")
+    raw_time = data.get("time", "")
+    try:
+        date_value = normalize_date_iso(raw_date)
+    except ValueError as e:
+        return None, [f"ERROR {filename}: invalid date '{raw_date}' - {e}"]
+
+    try:
+        time_value = normalize_time_hhmm(raw_time)
+    except ValueError as e:
+        return None, [f"ERROR {filename}: invalid time '{raw_time}' - {e}"]
+
     tx = Transaction(
-        date=data.get("date", ""),
-        time=data.get("time", ""),
+        date=date_value,
+        time=time_value,
         asset_name=data.get("asset_name", ""),
         asset_price=price,
         units=units,
