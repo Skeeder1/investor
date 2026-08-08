@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-OpenRouter%20%C2%B7%20Qwen3.5--Flash-6467F2)
 ![Dépendances](https://img.shields.io/badge/d%C3%A9pendances%20externes-2-brightgreen)
-![Tests](https://img.shields.io/badge/tests%20automatis%C3%A9s-aucun-lightgrey)
+![Tests](https://img.shields.io/badge/tests-32%20passants-success)
 
 ---
 
@@ -39,13 +39,13 @@ Le cœur du projet n'est donc pas l'appel API — une quarantaine de lignes — 
 
 | Garde-fou | Mécanisme | Où |
 |---|---|---|
-| **Sortie contrainte** | `temperature = 0.0` + prompt imposant un JSON strict, nettoyage des fences Markdown | `src/llm.py` |
-| **Contrôle arithmétique** | `unités × prix ± frais ≈ total`, tolérance 5 % → avertissement si l'écart dépasse le seuil | `src/validation.py` |
-| **Filtrage par statut** | Seuls `completed` et `executed` produisent une ligne ; `rejected`, `pending`, `not_a_transaction` sont écartés | `src/validation.py` |
-| **Auto-évaluation** | Le modèle renvoie un champ `confidence` et un champ `notes` ; les deux remontent en avertissement | `src/validation.py` |
-| **Cohérence des libellés** | Un second appel LLM rattache un nom d'actif inconnu à un nom déjà enregistré (faute de frappe, casse, mot manquant) | `src/assets.py` |
-| **Idempotence** | Une image ayant déjà produit une ligne n'est jamais renvoyée à l'API ; une transaction déjà présente n'est jamais dupliquée | `src/processor.py`, `src/csv_writer.py` |
-| **Aucune perte** | Sauvegarde intermédiaire toutes les 10 images | `src/processor.py` |
+| **Sortie contrainte** | `temperature = 0.0` + prompt imposant un JSON strict, nettoyage des fences Markdown | `src/infra/llm_client.py` |
+| **Contrôle arithmétique** | `unités × prix ± frais ≈ total`, tolérance 5 % → avertissement si l'écart dépasse le seuil | `src/domain/validation.py` |
+| **Filtrage par statut** | Seuls `completed` et `executed` produisent une ligne ; `rejected`, `pending`, `not_a_transaction` sont écartés | `src/domain/validation.py` |
+| **Auto-évaluation** | Le modèle renvoie un champ `confidence` et un champ `notes` ; les deux remontent en avertissement | `src/domain/validation.py` |
+| **Cohérence des libellés** | Un second appel LLM rattache un nom d'actif inconnu à un nom déjà enregistré (faute de frappe, casse, mot manquant) | `src/domain/asset_rules.py` |
+| **Idempotence** | Une image ayant déjà produit une ligne n'est jamais renvoyée à l'API ; une transaction déjà présente n'est jamais dupliquée | `src/app/extract.py`, `src/infra/csv_store.py` |
+| **Aucune perte** | Sauvegarde intermédiaire toutes les 10 images | `src/app/extract.py` |
 
 Une erreur n'interrompt jamais le traitement : chaque image est isolée dans son propre
 `try`, et les incidents sont agrégés dans un rapport final (`ajoutée(s) / doublon(s) /
@@ -72,19 +72,34 @@ investor/
 ├── main.py                        # Point d'entrée CLI : argparse, .env, garde-fous
 ├── prompts/
 │   └── extraction.md              # Prompt d'extraction — modifiable sans toucher au code
-├── src/
-│   ├── processor.py               # Orchestrateur : boucle, checkpoints, rapport
-│   ├── image.py                   # Encodage base64 + détection du type MIME
-│   ├── llm.py                     # Client OpenRouter (vision + texte) et chargement du prompt
-│   ├── validation.py              # Contrôles métier → Transaction | None + avertissements
-│   ├── assets.py                  # Normalisation des noms d'actifs (fuzzy matching LLM)
-│   ├── csv_writer.py              # Déduplication puis écriture du CSV trié
-│   └── models.py                  # Dataclass Transaction (10 champs)
+├── src/                           # Architecture en couches : app / domain / infra
+│   ├── app/                       # Cas d'usage — orchestration
+│   │   ├── extract.py             # Boucle d'extraction : checkpoints, rapport
+│   │   ├── normalize.py           # Normalisation des libellés d'actifs
+│   │   └── sync.py                # Synchronisation vers Google Sheets
+│   ├── domain/                    # Règles métier — aucune dépendance externe
+│   │   ├── models.py              # Dataclass Transaction
+│   │   ├── validation.py          # Contrôles métier → Transaction | None + avertissements
+│   │   ├── asset_rules.py         # Rapprochement des noms d'actifs
+│   │   ├── dedup.py               # Détection des doublons
+│   │   └── datetime_utils.py      # Normalisation des dates
+│   ├── infra/                     # Adaptateurs — tout ce qui touche l'extérieur
+│   │   ├── llm_client.py          # Client OpenRouter (vision + texte)
+│   │   ├── image_encoder.py       # Encodage base64 + détection du type MIME
+│   │   ├── csv_store.py           # Lecture, déduplication et écriture du CSV
+│   │   └── sheets_client.py       # Client Google Sheets
+│   ├── config.py                  # Configuration centralisée
+│   └── display.py                 # Rendu console du rapport
+├── tests/                         # Tests unitaires et d'intégration
 ├── input/                         # Captures à traiter (contenu ignoré par Git)
 └── output/
     ├── transactions.csv           # Sortie et, simultanément, état d'avancement
     └── transactions.example.csv   # Même format, données fictives
 ```
+
+Le découpage suit une logique d'architecture hexagonale : `domain/` ne connaît
+ni le réseau ni le disque, `infra/` isole les dépendances externes, et `app/`
+orchestre les deux. Les règles métier se testent donc sans le moindre bouchon.
 
 ### Le pipeline
 
@@ -223,7 +238,7 @@ Adapter l'extraction à une nouvelle mise en page de l'application ne demande au
 modification Python — c'est le fichier qui change le plus souvent, il est donc isolé
 de ce qui change le moins. En contrepartie, une contrainte à tenir : les statuts
 marqués valides dans le prompt doivent rester alignés sur `valid_statuses` dans
-`src/validation.py`.
+`src/domain/validation.py`.
 
 **Le CSV comme état.** L'approche classique — un manifeste d'empreintes SHA-256 dans
 un JSON dédié — impose deux fichiers à garder cohérents pour une information déjà
@@ -267,11 +282,10 @@ l'accès en écriture **avant de commencer** et attend, en affichant quoi faire.
   colonne `source_file`, une capture qui ne produit aucune ligne — statut `rejected`
   ou `pending`, écran non transactionnel — n'y figure jamais et repart vers l'API à
   chaque exécution.
-- **Suppression automatique.** Une capture dont le modèle renvoie le statut `failed`
-  est **supprimée du disque** (`src/processor.py`). Comportement voulu — purger les
-  transactions échouées — mais destructif et sans confirmation.
-- **Aucun test automatisé.** Les couches pures (`validation`, `csv_writer`,
-  `assets`) sont testables hors ligne sans appel API ; elles ne le sont pas encore.
+- **Mise en quarantaine.** Une capture dont le modèle renvoie le statut `failed` est
+  déplacée vers un dossier de quarantaine plutôt que traitée (`src/app/extract.py`),
+  avec gestion des collisions de noms. Rien n'est supprimé : la capture reste
+  inspectable.
 - **Année déduite.** Lorsque la capture n'affiche pas l'année, le prompt applique une
   règle calendaire figée (`prompts/extraction.md`) qui demande une mise à jour
   annuelle.
