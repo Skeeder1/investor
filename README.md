@@ -34,8 +34,8 @@ pour que le résultat soit un jeu de données *comptable*, et pas une approximat
 ## L'approche technique
 
 Un LLM de vision est probabiliste : il hallucine, il varie, il échoue silencieusement.
-Le cœur du projet n'est donc pas l'appel API (30 lignes), mais **les couches qui
-transforment une sortie non fiable en données vérifiées** :
+Le cœur du projet n'est donc pas l'appel API — une quarantaine de lignes — mais
+**les couches qui transforment une sortie non fiable en données vérifiées** :
 
 | Garde-fou | Mécanisme | Où |
 |---|---|---|
@@ -44,7 +44,7 @@ transforment une sortie non fiable en données vérifiées** :
 | **Filtrage par statut** | Seuls `completed` et `executed` produisent une ligne ; `rejected`, `pending`, `not_a_transaction` sont écartés | `src/validation.py` |
 | **Auto-évaluation** | Le modèle renvoie un champ `confidence` et un champ `notes` ; les deux remontent en avertissement | `src/validation.py` |
 | **Cohérence des libellés** | Un second appel LLM rattache un nom d'actif inconnu à un nom déjà enregistré (faute de frappe, casse, mot manquant) | `src/assets.py` |
-| **Idempotence** | Une image déjà traitée n'est jamais renvoyée à l'API ; une transaction déjà présente n'est jamais dupliquée | `src/processor.py`, `src/csv_writer.py` |
+| **Idempotence** | Une image ayant déjà produit une ligne n'est jamais renvoyée à l'API ; une transaction déjà présente n'est jamais dupliquée | `src/processor.py`, `src/csv_writer.py` |
 | **Aucune perte** | Sauvegarde intermédiaire toutes les 10 images | `src/processor.py` |
 
 Une erreur n'interrompt jamais le traitement : chaque image est isolée dans son propre
