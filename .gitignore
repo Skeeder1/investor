@@ -1,5 +1,20 @@
 # ── Secrets ───────────────────────────────────────────────
+# Git compare le NOM DE FICHIER COMPLET : le motif `.env` seul ne couvre
+# ni `secrets.env`, ni `prod.env`, ni `.env.local`. D'où les motifs larges.
 .env
+.env.*
+*.env
+*.key
+*.pem
+*.p12
+*.pfx
+credentials*
+secrets*
+
+# Exceptions : les gabarits ne contiennent aucune valeur réelle.
+# (Une négation doit être placée APRÈS le motif qu'elle annule.)
+!.env.example
+!*.env.example
 
 # ── Python ────────────────────────────────────────────────
 .venv/
@@ -16,9 +31,10 @@ build/
 input/*
 !input/.gitkeep
 
-# ── Output : garder le CSV, ignorer le reste ───────────────
+# ── Output : garder les CSV de référence, ignorer le reste ─
 output/*
 !output/transactions.csv
+!output/transactions.example.csv
 
 # ── IDE / OS ──────────────────────────────────────────────
 .vscode/
