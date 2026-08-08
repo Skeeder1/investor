@@ -1,6 +1,5 @@
-﻿python-dotenv
+python-dotenv
 truststore
-certifi
 gspread
 google-auth
 pyyaml
