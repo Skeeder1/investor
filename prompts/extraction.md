@@ -36,7 +36,7 @@ If header says "You earned" AND Overview says "Saveback" → definitely buy.
 ═══ STEP 3: EXTRACT TRANSACTION DATA ═══
 Look at the Overview section fields:
 
-  Asset:       The exact asset name (e.g. "Core S"Core S&P 500 USD (Acc)", "Aave"P 500 USD (Acc)", "Bitcoin")
+  Asset:       The exact asset name (e.g. "Core S&P 500 USD (Acc)", "Bitcoin")
   Transaction: Format is "UNITS x €PRICE" (e.g. "0.038562 x €630.14")
                → units = 0.038562, asset_price = 630.14
   Fee:         "Free" → 0.00, otherwise extract the number (e.g. "€1.00" → 1.00)
