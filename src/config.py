@@ -24,10 +24,10 @@ class LLMConfigSection(BaseModel):
     temperature: float = 0.0
 
 class GoogleSheetsConfigSection(BaseModel):
-    sync_enabled: bool = True
+    sync_enabled: bool = False
     sync_mode: Literal["send", "dry-run", "confirm"] = "send"
     sync_limit: Optional[int] = None
-    spreadsheet_id: str = "1edxyVxRjEtYAWVETnV7398yXxCOCs9pyuhJhcuaU3xU"
+    spreadsheet_id: str = ""
     sheet_name: str = "⚪ CTO"
     service_account_path: str = "~/.config/clef_google/service-account.json"
 

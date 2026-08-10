@@ -256,7 +256,7 @@ google_sheets:
   sync_enabled: true
   sync_mode: send
   sync_limit: null
-  spreadsheet_id: "1edxyVxRjEtYAWVETnV7398yXxCOCs9pyuhJhcuaU3xU"
+  spreadsheet_id: ""
   sheet_name: "⚪ CTO"
   service_account_path: "~/.config/clef_google/service-account.json"
 ```

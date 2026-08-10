@@ -33,7 +33,6 @@ input/*
 
 # ── Output : garder les CSV de référence, ignorer le reste ─
 output/*
-!output/transactions.csv
 !output/transactions.example.csv
 
 # ── IDE / OS ──────────────────────────────────────────────
@@ -44,3 +43,9 @@ Thumbs.db
 
 # ── Serena (agent local) ──────────────────────────────────
 .serena/
+
+# Generated test reports
+tests/reports/
+
+# AI tooling (machine-scoped)
+.claude/
